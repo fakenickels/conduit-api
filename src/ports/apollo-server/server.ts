@@ -8,9 +8,11 @@ import { JWTPayload } from '@/ports/adapters/jwt'
 
 import { authMiddleware } from '@/ports/adapters/http/http'
 import { GraphQLError, GraphQLErrorInput } from './errors'
+import { TaskEither } from 'fp-ts/TaskEither'
+import { UserResponse } from '../adapters/http/modules/user'
 
 const repository = {
-  async findOne (_id: string): Promise<void> {},
+  async findOne(_id: string): Promise<void> {},
 }
 
 export const repositories = {
@@ -24,13 +26,23 @@ export type Request = ExpressRequest & {
 }
 
 export type Context = {
-  req: Request,
-  repositories: typeof repositories,
+  req: Request
+  repositories: typeof repositories
+  viewer: TaskEither<
+    {
+      code: number
+      error: {
+        errors: {
+          body: string[]
+        }
+      }
+    },
+    UserResponse
+  > | null
 }
 
-async function auth (req: Request) {
+async function auth(req: Request) {
   const result = await authMiddleware(req.header('authorization'))()
-
   if (E.isLeft(result)) {
     throw new GraphQLError(result.left)
   }
@@ -38,10 +50,10 @@ async function auth (req: Request) {
   req.auth = result.right
 }
 
-async function tryAuth (req: Request) {
+async function tryAuth(req: Request) {
   return pipe(
     authMiddleware(req.header('authorization')),
-    TE.map((payload) => {
+    TE.map(payload => {
       req.auth = payload
       return req
     }),
@@ -51,11 +63,12 @@ async function tryAuth (req: Request) {
   )()
 }
 
-type Role =
-  | 'HALF_PUBLIC'
-  | 'PRIVATE'
+type Role = 'HALF_PUBLIC' | 'PRIVATE'
 
-export const authChecker: AuthChecker<Context, Role> = async ({ context }, roles) => {
+export const authChecker: AuthChecker<Context, Role> = async (
+  { context },
+  roles,
+) => {
   if (roles.includes('HALF_PUBLIC')) {
     await tryAuth(context.req)
     return true
@@ -67,14 +80,12 @@ export const authChecker: AuthChecker<Context, Role> = async ({ context }, roles
 
 export const Auth = (...roles: Role[]) => Authorized(...roles)
 
-type GraphQLMapResult = <E extends GraphQLErrorInput, A, B>
-  (mapFn: (a: A) => B) => (either: TE.TaskEither<E, A>) => Promise<B>
+type GraphQLMapResult = <E extends GraphQLErrorInput, A, B>(
+  mapFn: (a: A) => B,
+) => (either: TE.TaskEither<E, A>) => Promise<B>
 
-export const graphQLMapResult: GraphQLMapResult = (mapFn) => async (either) => {
-  const result = await pipe(
-    either,
-    TE.map(mapFn),
-  )()
+export const graphQLMapResult: GraphQLMapResult = mapFn => async either => {
+  const result = await pipe(either, TE.map(mapFn))()
 
   if (E.isLeft(result)) {
     throw new GraphQLError(result.left)

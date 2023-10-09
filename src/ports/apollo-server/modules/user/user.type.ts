@@ -1,7 +1,10 @@
-import { Field, ObjectType } from 'type-graphql'
+import { ID, Field, ObjectType } from 'type-graphql'
 
 @ObjectType('User')
 export class User {
+  @Field(() => ID)
+  readonly id: string
+
   @Field()
   email: string
 

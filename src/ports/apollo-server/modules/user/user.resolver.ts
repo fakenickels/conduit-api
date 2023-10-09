@@ -10,23 +10,20 @@ import { CreateUserInput, LoginInput, UpdateUserInput } from './user.input'
 
 @Resolver(_of => User)
 export class UserResolver {
-  @Auth()
-  @Query(_returns => User)
-  async me (@Ctx() context: Context): Promise<User> {
-    const req = context.req
-    const payload = getPayload(req.auth)
-
-    return pipe(
-      user.getCurrentUser({
-        id: payload.id,
-        authHeader: req.header('authorization'),
-      }),
-      graphQLMapResult(result => result.user),
-    )
+  @Query(_returns => User, { nullable: true })
+  async me(@Ctx() context: Context): Promise<User | null> {
+    if (context.viewer) {
+      return pipe(
+        context.viewer,
+        graphQLMapResult(result => result.user),
+      )
+    } else {
+      return null
+    }
   }
 
   @Mutation(_returns => User)
-  async signUp (@Arg('input') input: CreateUserInput): Promise<User> {
+  async signUp(@Arg('input') input: CreateUserInput): Promise<User> {
     return pipe(
       input as any,
       user.registerUser,
@@ -35,7 +32,7 @@ export class UserResolver {
   }
 
   @Mutation(_returns => User)
-  async login (@Arg('input') input: LoginInput): Promise<User> {
+  async login(@Arg('input') input: LoginInput): Promise<User> {
     return pipe(
       input as any,
       user.login,
@@ -45,7 +42,10 @@ export class UserResolver {
 
   @Auth()
   @Mutation(_returns => User)
-  async updateUser (@Arg('input') input: UpdateUserInput, @Ctx() context: Context): Promise<User> {
+  async updateUser(
+    @Arg('input') input: UpdateUserInput,
+    @Ctx() context: Context,
+  ): Promise<User> {
     const req = context.req
     const payload = getPayload(req.auth)
 

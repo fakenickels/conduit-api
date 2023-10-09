@@ -28,6 +28,6 @@ export const verifyToken = async (token: string) => {
 
 type Obj = {}
 
-function isValidPayload (payload: Obj): payload is JWTPayload {
+function isValidPayload(payload: Obj): payload is JWTPayload {
   return 'id' in payload
 }

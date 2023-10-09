@@ -1,12 +1,8 @@
 import * as t from 'io-ts'
-import {
-  emailCodec,
-  passwordCodec,
-  slugCodec,
-  urlCodec,
-} from '@/core/types'
+import { emailCodec, passwordCodec, slugCodec, urlCodec } from '@/core/types'
 
 const userCodecRequired = t.type({
+  id: t.string,
   email: emailCodec,
   username: slugCodec,
 })
@@ -17,10 +13,7 @@ const userCodecOptional = t.partial({
   image: urlCodec,
 })
 
-export const userCodec = t.intersection([
-  userCodecRequired,
-  userCodecOptional,
-])
+export const userCodec = t.intersection([userCodecRequired, userCodecOptional])
 
 export type User = t.TypeOf<typeof userCodec>
 export type UserOutput = t.OutputOf<typeof userCodec>

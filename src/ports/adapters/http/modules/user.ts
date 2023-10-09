@@ -19,62 +19,56 @@ type UserIdAndAuthHeader = {
   authHeader?: string
 }
 
-export function registerUser (data: CreateUser) {
+export function registerUser(data: CreateUser) {
   return pipe(
     data,
     user.registerUser(db.createUserInDB),
-    TE.chain(user => pipe(
-      TE.tryCatch(
-        () => jwt.generateToken({ id: user.id }),
-        E.toError,
+    TE.chain(user =>
+      pipe(
+        TE.tryCatch(() => jwt.generateToken({ id: user.id }), E.toError),
+        TE.map(token => ({ user, token })),
       ),
-      TE.map(token => ({ user, token })),
-    )),
+    ),
     TE.map(getUserResponse),
     TE.mapLeft(getError),
   )
 }
 
-export const updateUser = ({ id, authHeader }: UserIdAndAuthHeader) => (data: UpdateUser) => {
-  const token = extractToken(authHeader)
+export const updateUser =
+  ({ id, authHeader }: UserIdAndAuthHeader) =>
+    (data: UpdateUser) => {
+      const token = extractToken(authHeader)
 
-  return pipe(
-    data,
-    user.updateUser(db.updateUserInDB(id)),
-    TE.map(user => getUserResponse({ user, token })),
-    TE.mapLeft(getError),
-  )
-}
+      return pipe(
+        data,
+        user.updateUser(db.updateUserInDB(id)),
+        TE.map(user => getUserResponse({ user, token })),
+        TE.mapLeft(getError),
+      )
+    }
 
-export function login (data: LoginUser) {
+export function login(data: LoginUser) {
   return pipe(
     data,
     validateCodec(loginUserCodec),
     TE.fromEither,
-    TE.chain((data) => TE.tryCatch(
-      () => db.login(data),
-      E.toError,
-    )),
-    TE.chain((user) => pipe(
-      TE.tryCatch(
-        () => jwt.generateToken({ id: user.id }),
-        E.toError,
+    TE.chain(data => TE.tryCatch(() => db.login(data), E.toError)),
+    TE.chain(user =>
+      pipe(
+        TE.tryCatch(() => jwt.generateToken({ id: user.id }), E.toError),
+        TE.map(token => ({ user, token })),
       ),
-      TE.map(token => ({ user, token })),
-    )),
+    ),
     TE.map(getUserResponse),
     TE.mapLeft(getError),
   )
 }
 
-export function getCurrentUser ({ id, authHeader }: UserIdAndAuthHeader) {
+export function getCurrentUser({ id, authHeader }: UserIdAndAuthHeader) {
   const token = extractToken(authHeader)
 
   return pipe(
-    TE.tryCatch(
-      () => db.getCurrentUser(id),
-      E.toError,
-    ),
+    TE.tryCatch(() => db.getCurrentUser(id), E.toError),
     TE.map(user => getUserResponse({ user, token })),
     TE.mapLeft(getError),
   )
@@ -85,12 +79,9 @@ type GetProfileInput = {
   userId?: string
 }
 
-export function getProfile ({ username, userId }: GetProfileInput) {
+export function getProfile({ username, userId }: GetProfileInput) {
   return pipe(
-    TE.tryCatch(
-      () => db.getProfile(username),
-      E.toError,
-    ),
+    TE.tryCatch(() => db.getProfile(username), E.toError),
     TE.map(profile => getProfileResponse({ profile, userId })),
     TE.mapLeft(getError),
   )
@@ -101,12 +92,9 @@ type FollowUserInput = {
   userId: string
 }
 
-export function followUser ({ userToFollow, userId }: FollowUserInput) {
+export function followUser({ userToFollow, userId }: FollowUserInput) {
   return pipe(
-    TE.tryCatch(
-      () => db.followUser({ userToFollow, userId }),
-      E.toError,
-    ),
+    TE.tryCatch(() => db.followUser({ userToFollow, userId }), E.toError),
     TE.map(profile => getProfileResponse({ profile, userId })),
     TE.mapLeft(getError),
   )
@@ -117,12 +105,9 @@ type UnfollowUserInput = {
   userId: string
 }
 
-export function unfollowUser ({ userToUnfollow, userId }: UnfollowUserInput) {
+export function unfollowUser({ userToUnfollow, userId }: UnfollowUserInput) {
   return pipe(
-    TE.tryCatch(
-      () => db.unfollowUser({ userToUnfollow, userId }),
-      E.toError,
-    ),
+    TE.tryCatch(() => db.unfollowUser({ userToUnfollow, userId }), E.toError),
     TE.map(profile => getProfileResponse({ profile, userId })),
     TE.mapLeft(getError),
   )
@@ -133,7 +118,7 @@ type GetUserResponseInput = {
   token: string
 }
 
-type UserResponse = {
+export type UserResponse = {
   user: UserOutput
 }
 
@@ -141,6 +126,7 @@ type GetUserResponse = (input: GetUserResponseInput) => UserResponse
 
 const getUserResponse: GetUserResponse = ({ user, token }) => ({
   user: {
+    id: user.id,
     email: user.email,
     token,
     username: user.username,
